@@ -16,7 +16,7 @@ months = ['01', '02', '03', '04', '05', '06', '07', '08', '09', '10', '11', '12'
 years = ['1391', '1392', '1393', '1394', '1395', '1396', '1397']
 
 DateFrom = '13960101'
-DateTo = '13970401'
+DateTo = '13960101'
 
 
 def StartThriftserver():
@@ -95,7 +95,8 @@ def Servat_insert(date1):
                 select a.custno ,
                         sum(substr(a.REMAININGAMOUNTEFFECTIVE, 0, length(a.REMAININGAMOUNTEFFECTIVE)-1)) as mandeh  ,
                         SUBSTRING(a.ACNO, 0,2) as NoeHesab , 
-                        max(b.ghedmat) as ghedmat
+                        max(b.ghedmat) as ghedmat ,
+                        max(a.HISDATE) as tarikh
                 from lastbal9697 a
                 left join mvCus1_DF b on a.custno = b.custno
                 where  a.HISDATE  = """+date1+"""  and b.jam >9999999999
@@ -115,20 +116,21 @@ def Servat_insert(date1):
     #mvCus4_DF = spark.sql(" select custno , sum( Case When NoeHesab = '01' or NoeHesab = '03' Then mandeh End) as gharz, sum( Case When NoeHesab = '02' Then mandeh End) as kotah, sum( Case When NoeHesab = '04' or NoeHesab = '05' Then mandeh End) as boland, max(ghedmat)  from mvCus2_DF  GROUP by custno  ")
     mvCus4_DF = spark.sql("""
                 select custno ,
-                      sum( Case When NoeHesab = '01' or NoeHesab = '03' Then mandeh End) as gharz,
-                      sum( Case When NoeHesab = '02' Then mandeh End) as kotah,
-                      sum( Case When NoeHesab = '04' or NoeHesab = '05' Then mandeh End) as boland,
-                      max(ghedmat) as ghedmat ,
-                      """ + date1+ """ as tarikh
+                      cast(sum( Case When NoeHesab = '01' or NoeHesab = '03' Then mandeh End)as string) as gharz,
+                      cast(sum( Case When NoeHesab = '02' Then mandeh End)as string) as kotah,
+                      cast(sum( Case When NoeHesab = '04' or NoeHesab = '05' Then mandeh End)as string) as boland,
+                      cast(max(ghedmat)as string) as ghedmat ,
+                      cast(max(tarikh) as string) as tarikh
                 from mvCus2_DF 
                 GROUP by custno
               """)
     #mvCus4_DF.repartition(6).createOrReplaceTempView("mvCus4_DF")
     #print('   %%%%%% mvCus4_DF size of ', date1, ' is : ', mvCus4_DF.count())
+    print(mvCus4_DF.head())
 
-    mvCus4_DF.write.mode("Append").format("parquet").save('hdfs://10.100.136.60:9000/user/hduser/pqServat1' )
-    mvCus4_DF.createOrReplaceTempView("mvservat_d1")
-    spark.catalog.refreshTable("mvservat_d1")
+    mvCus4_DF.write.mode("append").format("parquet").save('hdfs://10.100.136.60:9000/user/hduser/pqServat1' )
+    mvCus4_DF.createOrReplaceTempView("mvservat1")
+    spark.catalog.refreshTable("mvservat1")
 
 
 
