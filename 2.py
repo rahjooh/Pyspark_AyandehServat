@@ -94,7 +94,7 @@ def Servat_insert(date1):
                 select a.custno ,
                         sum(substr(a.REMAININGAMOUNTEFFECTIVE, 0, length(a.REMAININGAMOUNTEFFECTIVE)-1)) as mandeh  ,
                         SUBSTRING(a.ACNO, 0,2) as NoeHesab , 
-                        max(b.ghedmat)
+                        max(b.ghedmat) as ghedmat
                 from lastbal9697 a
                 left join mvCus1_DF b on a.custno = b.custno
                 where  a.HISDATE  = """+date1+"""  and b.jam >9999999999
@@ -110,17 +110,20 @@ def Servat_insert(date1):
     mvCus3_DF.repartition(6).createOrReplaceTempView("mvCus3_DF")
     print('   %%%%%% mvCus3_DF size of ', date1, ' is : ', mvCus3_DF.count())
 
+
+    #mvCus4_DF = spark.sql(" select custno , sum( Case When NoeHesab = '01' or NoeHesab = '03' Then mandeh End) as gharz, sum( Case When NoeHesab = '02' Then mandeh End) as kotah, sum( Case When NoeHesab = '04' or NoeHesab = '05' Then mandeh End) as boland, max(ghedmat)  from mvCus2_DF  GROUP by custno  ")
     mvCus4_DF = spark.sql("""
                 select custno ,
                       sum( Case When NoeHesab = '01' or NoeHesab = '03' Then mandeh End) as gharz,
                       sum( Case When NoeHesab = '02' Then mandeh End) as kotah,
                       sum( Case When NoeHesab = '04' or NoeHesab = '05' Then mandeh End) as boland,
-                      max(ghedmat)
+                      max(ghedmat) as ghedmat ,
+                      """ + date1+ """ as tarikh
                 from mvCus2_DF 
                 GROUP by custno
               """)
     mvCus4_DF.repartition(6).createOrReplaceTempView("mvCus4_DF")
-    print('   %%%%%% mvCus3_DF size of ', date1, ' is : ', mvCus4_DF.count())
+    print('   %%%%%% mvCus4_DF size of ', date1, ' is : ', mvCus4_DF.count())
     print(mvCus4_DF.head())
 
 
