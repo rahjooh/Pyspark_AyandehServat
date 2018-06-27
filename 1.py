@@ -14,8 +14,8 @@ tdays =['01','02','03','04','05','06','07','08','09','10','11','12','13','14','1
 months = ['01','02','03','04','05','06','07','08','09','10','11','12']
 years = ['1391','1392','1393','1394','1395','1396','1397']
 
-DateFrom = '13970104'
-DateTo = '13970105'
+DateFrom = '13960101'
+DateTo = '13970301'
 
 
 def StartThriftserver():
@@ -66,7 +66,7 @@ def StopThriftserver():
 def Servat_insert(date1) :
     #StopThriftserver()
     # read first Table
-    lastbal97_01_DF = spark.read.parquet("hdfs://10.100.136.60:9000/user/hduser/pq97LASTBAL_1")
+    lastbal97_01_DF = spark.read.parquet("hdfs://10.100.136.60:9000/user/hduser/pqLastbal9697")
     lastbal97_01_DF.repartition(6).createOrReplaceTempView("lastbal97_01")
 
     # read second Table
@@ -74,27 +74,28 @@ def Servat_insert(date1) :
     custinfo97_01_DF.repartition(6).createOrReplaceTempView("custinfo97_01")
 
     # STEP 1 : create mandeh sepordeh gharzol hasaneh
-    mvGharz_DF = spark.sql("select CUSTNO, SUM(SUBSTRING(REMAININGAMOUNTEFFECTIVE, 0, length(REMAININGAMOUNTEFFECTIVE)-1)) as MANDE_Gharz,HISDATE from lastbal97_01 where (SUBSTRING(ACNO, 1,2)='01' or SUBSTRING(ACNO, 1,2)='03') and HISDATE = "+date1+" group by CUSTNO,HISDATE ")
+    mvGharz_DF = spark.sql("select CUSTNO, SUM(SUBSTRING(REMAININGAMOUNTEFFECTIVE, 0, length(REMAININGAMOUNTEFFECTIVE)-1)) as MandehGharz,HISDATE from lastbal97_01 where (SUBSTRING(ACNO, 0,2)='01' or SUBSTRING(ACNO, 1,2)='03') and HISDATE = "+date1+" group by CUSTNO,HISDATE  ")
     mvGharz_DF.repartition(6).createOrReplaceTempView("mvGharz")
     print('   %%%%%% mvGharz size of ', date1, ' is : ', mvGharz_DF.count())
     
     # STEP 2 : create mandeh sepordeh kootah modat
-    mvKootah_DF = spark.sql("select CUSTNO, SUM(SUBSTRING(REMAININGAMOUNTEFFECTIVE, 0, length(REMAININGAMOUNTEFFECTIVE)-1)) as MANDE_Kootah,HISDATE from lastbal97_01 where SUBSTRING(ACNO, 1,2)='02' and HISDATE = "+date1+" group by CUSTNO,HISDATE ")
+    mvKootah_DF = spark.sql("select CUSTNO, SUM(SUBSTRING(REMAININGAMOUNTEFFECTIVE, 0, length(REMAININGAMOUNTEFFECTIVE)-1)) as MandehKootah,HISDATE from lastbal97_01 where SUBSTRING(ACNO, 0,2)='02' and HISDATE = "+date1+" group by CUSTNO,HISDATE ")
     mvKootah_DF.repartition(6).createOrReplaceTempView("mvKootah")
     print('   %%%%%% mvKootah size of ', date1, ' is : ', mvKootah_DF.count())
     
     # STEP 3 : create mandeh sepordeh modatdar
-    mvModatdar_DF = spark.sql("select CUSTNO, SUM(SUBSTRING(REMAININGAMOUNTEFFECTIVE, 0, length(REMAININGAMOUNTEFFECTIVE)-1)) as MANDE_Modatdar,HISDATE from lastbal97_01 where (SUBSTRING(ACNO, 1,2)='04' or SUBSTRING(ACNO, 1,2)='08') and HISDATE = "+date1+" group by CUSTNO ,HISDATE")
+    mvModatdar_DF = spark.sql("select CUSTNO, SUM(SUBSTRING(REMAININGAMOUNTEFFECTIVE, 0, length(REMAININGAMOUNTEFFECTIVE)-1)) as MandehModatdar,HISDATE from lastbal97_01 where (SUBSTRING(ACNO, 0,2)='04' or SUBSTRING(ACNO, 1,2)='08') and HISDATE = "+date1+" group by CUSTNO ,HISDATE")
     mvModatdar_DF.repartition(6).createOrReplaceTempView("mvModatdar")
     print('   %%%%%% mvModatdar size of ', date1, ' is : ', mvModatdar_DF.count())
 
     # STEP 4 : create ghedmat moshtari
-    mvGhedmat_DF = spark.sql("select CUSTNO,        int(((substring(current_date(),1,4) *365) +(substring(current_date(),6,2) *30.42) + substring(current_date(),9,2))- 226746.26 - ((substring(concat('13',DATEOPN),1,4) *365 ) + (substring(DATEOPN,3,2)*30.42 ) +  substring(DATEOPN,5,2))) as ghedmat from custinfo97_01")
+    mvGhedmat_DF = spark.sql("select CUSTNO,   int(((substring(current_date(),1,4) *365) +(substring(current_date(),6,2) *30.42) + substring(current_date(),9,2))- 226746.26 - ((substring(concat('13',DATEOPN),1,4) *365 ) + (substring(DATEOPN,3,2)*30.42 ) +  substring(DATEOPN,5,2))) as ghedmat from custinfo97_01")
     mvGhedmat_DF.repartition(6).createOrReplaceTempView("mvGhedmat")
     print('   %%%%%% mvGhedmat size of ', date1, ' is : ', mvGhedmat_DF.count())
 
-    today_DF = spark.sql(" select cast(a.CUSTNO as string) , cast(d.MANDE_Gharz as string) , cast(b.MANDE_Kootah as string) , cast(c.MANDE_Modatdar as string) , cast(a.ghedmat as string) , b.HISDATE as today1 , c.HISDATE as today2 ,d.HISDATE as today3 from mvGhedmat  a LEFT join mvKootah b on a.CUSTNO = b.CUSTNO  LEFT join mvModatdar c on a.CUSTNO = c.CUSTNO LEFT join mvGharz d on a.CUSTNO = d.CUSTNO  ")
+    today_DF = spark.sql(" select cast(a.CUSTNO as string) , cast(d.MandehGharz as string) , cast(b.MandehKootah as string) , cast(c.MandehModatdar as string) , cast(a.ghedmat as string) ,cast ( nvl(b.HISDATE,nvl(c.HISDATE,d.HISDATE)) as string ) as  tarikh from mvGhedmat  a LEFT join mvKootah b on a.CUSTNO = b.CUSTNO  LEFT join mvModatdar c on a.CUSTNO = c.CUSTNO LEFT join mvGharz d on a.CUSTNO = d.CUSTNO where cast ( nvl(b.HISDATE,nvl(c.HISDATE,d.HISDATE)) as string ) is not null and  (d.MandehGharz +b.MandehKootah+c.MandehModatdar ) >= 10000000000 ")
     today_DF.repartition(6).createOrReplaceTempView("today")
+    print(today_DF.count())
     # print(today_DF.head(10))
     # print('\n\n\n\n\n\n\n')
 
@@ -104,14 +105,22 @@ def Servat_insert(date1) :
     #                           jars=["/home/hduser/hadi/ser/libdep"+f for f in listdir("/home/hduser/hadi/ser/libdep") if isfile(join("/home/hduser/hadi/ser/libdep", f))])
     # conn.autocommit = True
     # curs = conn.cursor()
-    # curs.execute("CREATE TABLE  IF NOT EXISTS mvServat_D1 (CUSTNO STRING, MANDE_Gharz STRING, MANDE_Kootah STRING, MANDE_Modatdar STRING, ghedmat STRING,HISDATE STRING)	using parquet options (path 'hdfs://10.100.136.60:9000/user/hduser/pqServat1')")
+    # curs.execute("CREATE TABLE  IF NOT EXISTS mvServat_D1 (CUSTNO STRING, MandehGharz STRING, MandehKootah STRING, MandehModatdar STRING, ghedmat STRING,tarikh STRING)	using parquet options (path 'hdfs://10.100.136.60:9000/user/hduser/pqServat1')")
     # curs.close()
     # conn.close()
 
-    append_DF = spark.sql("select CUSTNO , MANDE_Gharz , MANDE_Kootah , MANDE_Modatdar , ghedmat, nvl(today1,nvl(today2,today3))  as tarikh from today where nvl(today1,nvl(today2,today3)) is not null ")
-    append_DF.write.mode("append").format("parquet").save('hdfs://10.100.136.60:9000/user/hduser/pqServat1')
-
-    #spark.sql(" INSERT into TABLE mvServat_D1 select CUSTNO , MANDE_Gharz , MANDE_Kootah , MANDE_Modatdar , ghedmat from today" )
+    append_DF = spark.sql("select CUSTNO , MandehGharz , MandehKootah , MandehModatdar , ghedmat, tarikh from today  ")
+    append_DF.write.mode("Append").format("parquet").save('hdfs://10.100.136.60:9000/user/hduser/pqServat1' )
+    append_DF.createOrReplaceTempView("mvservat_d1")
+    spark.catalog.refreshTable("mvservat_d1")
+    #spark.sql("refresh table pqServat1")
+    #
+    # append_DF = spark.sql("select CUSTNO , MandehGharz , MandehKootah , MandehModatdar , ghedmat, nvl(today1,nvl(today2,today3),'Ignore')  as tarikh from today where nvl(today1,nvl(today2,today3)) is not null ")
+    # append_DF.write.mode("Ignore").format("parquet").save('hdfs://10.100.136.60:9000/user/hduser/pqServat1')
+    #
+    # append_DF = spark.sql("select CUSTNO , MandehGharz , MandehKootah , MandehModatdar , ghedmat, nvl(today1,nvl(today2,today3),'Overwrite')  as tarikh from today where nvl(today1,nvl(today2,today3)) is not null ")
+    # append_DF.write.mode("Overwrite").format("parquet").save('hdfs://10.100.136.60:9000/user/hduser/pqServat1')
+    #spark.sql(" INSERT into TABLE mvServat_D1 select CUSTNO , MandehGharz , MandehKootah , MandehModatdar , ghedmat from today" )
     # today_DF.write.mode('append').insertInto('mvServat_D1')
     # all_DF = spark.sql(" select * from mvServat_D1 ")
     # today_DF.repartition(6).createOrReplaceTempView("all")
@@ -127,7 +136,7 @@ for y in years :
         if int(m) > 6 : tdays = days[:-1]
         if m == '12':tdays = days[:-2]
         for d in tdays:
-            if DateTo < y + m +d or DateFrom > y + m + d: continue
+            if (DateTo < y + m +d or DateFrom > y + m + d) or (d != '01'): continue
             today = y + m + d
             print( today, ':', time.ctime())
             Servat_insert(today)
