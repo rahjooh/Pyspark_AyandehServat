@@ -16,7 +16,7 @@ months = ['01', '02', '03', '04', '05', '06', '07', '08', '09', '10', '11', '12'
 years = ['1391', '1392', '1393', '1394', '1395', '1396', '1397']
 
 DateFrom = '13960101'
-DateTo = '13960101'
+DateTo = '13970401'
 
 
 def StartThriftserver():
@@ -67,6 +67,7 @@ def StopThriftserver():
 
 
 def Servat_insert(date1):
+    print(date1)
     # StopThriftserver()
     # read first Table
     lastbal97_01_DF = spark.read.parquet("hdfs://10.100.136.60:9000/user/hduser/pqLastbal9697")
@@ -75,7 +76,7 @@ def Servat_insert(date1):
     # read second Table
     custinfo97_01_DF = spark.read.parquet("hdfs://10.100.136.60:9000/user/hduser/pqCust9701")
     custinfo97_01_DF.repartition(6).createOrReplaceTempView("custinfo9701")
-    print('   %%%%%% custinfo_DF size of ', date1, ' is : ', custinfo97_01_DF.count())
+    #print('   %%%%%% custinfo_DF size of ', date1, ' is : ', custinfo97_01_DF.count())
 
 
     mvCus1_DF = spark.sql("""
@@ -88,8 +89,8 @@ def Servat_insert(date1):
                 group by b.custno , c.DATEOPN
                 """)
     mvCus1_DF.repartition(6).createOrReplaceTempView("mvCus1_DF")
-    print('   %%%%%% mvCus1_DF size of ', date1, ' is : ', mvCus1_DF.count())
-    print('*')
+    #print('   %%%%%% mvCus1_DF size of ', date1, ' is : ', mvCus1_DF.count())
+
     mvCus2_DF = spark.sql("""
                 select a.custno ,
                         sum(substr(a.REMAININGAMOUNTEFFECTIVE, 0, length(a.REMAININGAMOUNTEFFECTIVE)-1)) as mandeh  ,
@@ -101,14 +102,14 @@ def Servat_insert(date1):
                 group by a.custno,SUBSTRING(a.ACNO, 0,2)
               """)
     mvCus2_DF.repartition(6).createOrReplaceTempView("mvCus2_DF")
-    print('   %%%%%% mvCus2_DF size of ', date1, ' is : ', mvCus2_DF.count())
+    #print('   %%%%%% mvCus2_DF size of ', date1, ' is : ', mvCus2_DF.count())
 
     mvCus3_DF = spark.sql("""
                 select DISTINCT custno
                 from mvCus2_DF 
               """)
     mvCus3_DF.repartition(6).createOrReplaceTempView("mvCus3_DF")
-    print('   %%%%%% mvCus3_DF size of ', date1, ' is : ', mvCus3_DF.count())
+    #print('   %%%%%% mvCus3_DF size of ', date1, ' is : ', mvCus3_DF.count())
 
 
     #mvCus4_DF = spark.sql(" select custno , sum( Case When NoeHesab = '01' or NoeHesab = '03' Then mandeh End) as gharz, sum( Case When NoeHesab = '02' Then mandeh End) as kotah, sum( Case When NoeHesab = '04' or NoeHesab = '05' Then mandeh End) as boland, max(ghedmat)  from mvCus2_DF  GROUP by custno  ")
@@ -122,9 +123,12 @@ def Servat_insert(date1):
                 from mvCus2_DF 
                 GROUP by custno
               """)
-    mvCus4_DF.repartition(6).createOrReplaceTempView("mvCus4_DF")
-    print('   %%%%%% mvCus4_DF size of ', date1, ' is : ', mvCus4_DF.count())
-    print(mvCus4_DF.head())
+    #mvCus4_DF.repartition(6).createOrReplaceTempView("mvCus4_DF")
+    #print('   %%%%%% mvCus4_DF size of ', date1, ' is : ', mvCus4_DF.count())
+
+    mvCus4_DF.write.mode("Append").format("parquet").save('hdfs://10.100.136.60:9000/user/hduser/pqServat1' )
+    mvCus4_DF.createOrReplaceTempView("mvservat_d1")
+    spark.catalog.refreshTable("mvservat_d1")
 
 
 
