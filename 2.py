@@ -75,34 +75,53 @@ def Servat_insert(date1):
     # read second Table
     custinfo97_01_DF = spark.read.parquet("hdfs://10.100.136.60:9000/user/hduser/pqCust9701")
     custinfo97_01_DF.repartition(6).createOrReplaceTempView("custinfo9701")
+    print('   %%%%%% custinfo_DF size of ', date1, ' is : ', custinfo97_01_DF.count())
+
 
     mvCus1_DF = spark.sql("""
-                select sum(substr(b.REMAININGAMOUNTEFFECTIVE, 0, length(b.REMAININGAMOUNTEFFECTIVE)-1)) as jam,
+                 select sum(substr(b.REMAININGAMOUNTEFFECTIVE, 0, length(b.REMAININGAMOUNTEFFECTIVE)-1)) as jam,
+                        int(((substring(current_date(),1,4) *365) +(substring(current_date(),6,2) *30.42) + substring(current_date(),9,2))- 226746.26 - ((substring(concat('13',c.DATEOPN),1,4) *365 ) + (substring(c.DATEOPN,3,2)*30.42 ) +  substring(c.DATEOPN,5,2))) as ghedmat,
                         b.custno
                 from lastbal9697 b  
                 left join custinfo9701 c on b.custno = c.custno 
-                where   b.HISDATE = "+date1+" and   c.custype != '02' 
-                group by b.custno""")
+                where   b.HISDATE ="""+date1+""" and   c.custype != '02' 
+                group by b.custno , c.DATEOPN
+                """)
     mvCus1_DF.repartition(6).createOrReplaceTempView("mvCus1_DF")
+    print('   %%%%%% mvCus1_DF size of ', date1, ' is : ', mvCus1_DF.count())
     print('*')
     mvCus2_DF = spark.sql("""
                 select a.custno ,
                         sum(substr(a.REMAININGAMOUNTEFFECTIVE, 0, length(a.REMAININGAMOUNTEFFECTIVE)-1)) as mandeh  ,
-                        SUBSTRING(a.ACNO, 0,2) as NoeHesab
+                        SUBSTRING(a.ACNO, 0,2) as NoeHesab , 
+                        max(b.ghedmat)
                 from lastbal9697 a
                 left join mvCus1_DF b on a.custno = b.custno
-                where  a.HISDATE  = "+date1+"  and b.jam >9999999999
+                where  a.HISDATE  = """+date1+"""  and b.jam >9999999999
                 group by a.custno,SUBSTRING(a.ACNO, 0,2)
               """)
     mvCus2_DF.repartition(6).createOrReplaceTempView("mvCus2_DF")
-    print('   %%%%%% mvCus1_DF size of ', date1, ' is : ', mvCus1_DF.count())
+    print('   %%%%%% mvCus2_DF size of ', date1, ' is : ', mvCus2_DF.count())
 
     mvCus3_DF = spark.sql("""
-                select count(DISTINCT custno)
+                select DISTINCT custno
                 from mvCus2_DF 
               """)
     mvCus3_DF.repartition(6).createOrReplaceTempView("mvCus3_DF")
     print('   %%%%%% mvCus3_DF size of ', date1, ' is : ', mvCus3_DF.count())
+
+    mvCus4_DF = spark.sql("""
+                select custno ,
+                      sum( Case When NoeHesab = '01' or NoeHesab = '03' Then mandeh End) as gharz,
+                      sum( Case When NoeHesab = '02' Then mandeh End) as kotah,
+                      sum( Case When NoeHesab = '04' or NoeHesab = '05' Then mandeh End) as boland,
+                      max(ghedmat)
+                from mvCus2_DF 
+                GROUP by custno
+              """)
+    mvCus4_DF.repartition(6).createOrReplaceTempView("mvCus4_DF")
+    print('   %%%%%% mvCus3_DF size of ', date1, ' is : ', mvCus4_DF.count())
+    print(mvCus4_DF.head())
 
 
 
