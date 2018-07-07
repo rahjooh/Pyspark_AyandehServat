@@ -1,5 +1,4 @@
-import time, pyspark, socket, jaydebeapi
-
+import time, pyspark, socket, jaydebeapi, pandas as pd ,csv
 from pyspark.sql import SparkSession
 from pyspark.sql.functions import *
 from os import listdir
@@ -67,7 +66,6 @@ def StopThriftserver():
 
 
 def Servat_insert(date1):
-    print(date1)
     # StopThriftserver()
     # read first Table
     lastbal97_01_DF = spark.read.parquet("hdfs://10.100.136.60:9000/user/hduser/pqLastbal9697")
@@ -128,9 +126,12 @@ def Servat_insert(date1):
     #print('   %%%%%% mvCus4_DF size of ', date1, ' is : ', mvCus4_DF.count())
     print(mvCus4_DF.head())
 
-    mvCus4_DF.write.mode("append").format("parquet").save('hdfs://10.100.136.60:9000/user/hduser/pqServat1' )
-    mvCus4_DF.createOrReplaceTempView("mvservat1")
-    spark.catalog.refreshTable("mvservat1")
+    with open('servat.csv', 'a') as f1:
+        pd.DataFrame(mvCus4_DF).to_csv(f1, header=False ,encoding='utf-8')
+
+    # mvCus4_DF.write.mode("append").format("parquet").save('hdfs://10.100.136.60:9000/user/hduser/pqServat1' )
+    # mvCus4_DF.createOrReplaceTempView("mvservat1")
+    # spark.catalog.refreshTable("mvservat1")
 
 
 
