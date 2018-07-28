@@ -79,12 +79,12 @@ def Servat_insert(date1):
 
     mvCus1_DF = spark.sql("""
                  select sum(substr(b.REMAININGAMOUNTEFFECTIVE, 0, length(b.REMAININGAMOUNTEFFECTIVE)-1)) as jam,
-                        int(((substring(current_date(),1,4) *365) +(substring(current_date(),6,2) *30.42) + substring(current_date(),9,2))- 226746.26 - ((substring(concat('13',c.DATEOPN),1,4) *365 ) + (substring(c.DATEOPN,3,2)*30.42 ) +  substring(c.DATEOPN,5,2))) as ghedmat,
+                        int(((substring( b.HISDATE,1,4) *365 ) + (substring( b.HISDATE,3,2)*30.42 ) +  substring( b.HISDATE,5,2))-((substring(concat('13',c.DATEOPN),1,4) *365 ) + (substring(c.DATEOPN,3,2)*30.42 ) +  substring(c.DATEOPN,5,2))) as ghedmat,
                         b.custno
                 from lastbal9697 b  
                 left join custinfo9701 c on b.custno = c.custno 
                 where   b.HISDATE ="""+date1+""" and   c.custype != '02' 
-                group by b.custno , c.DATEOPN
+                group by b.custno , c.DATEOPN,b.HISDATE
                 """)
     mvCus1_DF.repartition(6).createOrReplaceTempView("mvCus1_DF")
     #print('   %%%%%% mvCus1_DF size of ', date1, ' is : ', mvCus1_DF.count())

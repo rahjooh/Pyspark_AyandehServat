@@ -77,9 +77,18 @@ def Servat_insert(date1):
     #print('   %%%%%% custinfo_DF size of ', date1, ' is : ', custinfo97_01_DF.count())
 
 
+    # mvCus1_DF = spark.sql("""
+    #              select sum(substr(b.REMAININGAMOUNTEFFECTIVE, 0, length(b.REMAININGAMOUNTEFFECTIVE)-1)) as jam,
+    #                     int(((substring(current_date(),1,4) *365) +(substring(current_date(),6,2) *30.42) + substring(current_date(),9,2))- 226746.26 - ((substring(concat('13',c.DATEOPN),1,4) *365 ) + (substring(c.DATEOPN,3,2)*30.42 ) +  substring(c.DATEOPN,5,2))) as ghedmat,
+    #                     b.custno
+    #             from lastbal9697 b
+    #             left join custinfo9701 c on b.custno = c.custno
+    #             where   b.HISDATE ="""+date1+""" and   c.custype != '02'
+    #             group by b.custno , c.DATEOPN
+    #             """)
     mvCus1_DF = spark.sql("""
                  select sum(substr(b.REMAININGAMOUNTEFFECTIVE, 0, length(b.REMAININGAMOUNTEFFECTIVE)-1)) as jam,
-                        int(((substring(current_date(),1,4) *365) +(substring(current_date(),6,2) *30.42) + substring(current_date(),9,2))- 226746.26 - ((substring(concat('13',c.DATEOPN),1,4) *365 ) + (substring(c.DATEOPN,3,2)*30.42 ) +  substring(c.DATEOPN,5,2))) as ghedmat,
+                        int(((substring(""" +date1+ """,1,4) *365 ) + (substring("""+date1+""",3,2)*30.42 ) +  substring(c.DATEOPN,5,2)) - ((substring(concat('13',c.DATEOPN),1,4) *365 ) + (substring(c.DATEOPN,3,2)*30.42 ) +  substring(c.DATEOPN,5,2))) as ghedmat,
                         b.custno
                 from lastbal9697 b  
                 left join custinfo9701 c on b.custno = c.custno 
@@ -153,7 +162,7 @@ for y in years:
         if int(m) > 6: tdays = days[:-1]
         if m == '12': tdays = days[:-2]
         for d in tdays:
-            if (DateTo < y + m + d or DateFrom > y + m + d) or (d != '01'): continue
+            if (DateTo < y + m + d or DateFrom > y + m + d) : continue
             today = y + m + d
             print(today, ':', time.ctime())
             Servat_insert(today)
