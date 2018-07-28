@@ -14,7 +14,7 @@ tdays = ['01', '02', '03', '04', '05', '06', '07', '08', '09', '10', '11', '12',
 months = ['01', '02', '03', '04', '05', '06', '07', '08', '09', '10', '11', '12']
 years = ['1391', '1392', '1393', '1394', '1395', '1396', '1397']
 
-DateFrom = '13960101'
+DateFrom = '13970101'
 DateTo = '13970301'
 
 
@@ -79,7 +79,7 @@ def Servat_insert(date1):
 
     mvCus1_DF = spark.sql("""
                  select sum(substr(b.REMAININGAMOUNTEFFECTIVE, 0, length(b.REMAININGAMOUNTEFFECTIVE)-1)) as jam,
-                        int(((substring( b.HISDATE,1,4) *365 ) + (substring( b.HISDATE,3,2)*30.42 ) +  substring( b.HISDATE,5,2))-((substring(concat('13',c.DATEOPN),1,4) *365 ) + (substring(c.DATEOPN,3,2)*30.42 ) +  substring(c.DATEOPN,5,2))) as ghedmat,
+                        int(((substring( b.HISDATE,0,4) *365 ) + (substring( b.HISDATE,5,2)*30.42 ) +  substring( b.HISDATE,7,2))-((substring(concat('13',c.DATEOPN),1,4) *365 ) + (substring(c.DATEOPN,3,2)*30.42 ) +  substring(c.DATEOPN,5,2))) as ghedmat,
                         b.custno
                 from lastbal9697 b  
                 left join custinfo9701 c on b.custno = c.custno 
@@ -124,11 +124,12 @@ def Servat_insert(date1):
               """)
     #mvCus4_DF.repartition(6).createOrReplaceTempView("mvCus4_DF")
     #print('   %%%%%% mvCus4_DF size of ', date1, ' is : ', mvCus4_DF.count())
-    print(mvCus4_DF.head())
+
 
     #sparkDF = mvCus4_DF.map(lambda x: str(x)).map(lambda w: w.split(',')).toDF()
 
     # Spark DataFrame to Pandas DataFrame
+    print(mvCus4_DF.head())
     pdsDF = mvCus4_DF.toPandas()
     print(type(pdsDF))
     #pd1 = mvCus4_DF.toPandas()
@@ -153,7 +154,7 @@ for y in years:
         if int(m) > 6: tdays = days[:-1]
         if m == '12': tdays = days[:-2]
         for d in tdays:
-            if (DateTo < y + m + d or DateFrom > y + m + d) or (d != '01'): continue
+            if (DateTo < y + m + d or DateFrom > y + m + d) or (d != '31' ): continue
             today = y + m + d
             print(today, ':', time.ctime())
             Servat_insert(today)
